@@ -3,7 +3,7 @@ import { Mail, Phone, Clock, X, CheckCircle2, XCircle, Trash2 } from "lucide-rea
 import { ScoreRing, Pill } from "./ScoreRing";
 import { STAGES, STAGE_COLOR, scoreColor } from "../lib/constants";
 
-export function CandidateDrawer({ candidate, job, onClose, onStageChange, onDelete }) {
+export function CandidateDrawer({ candidate, job, onClose, onStageChange, onDelete, isHost }) {
   if (!candidate) return null;
   return (
     <div
@@ -92,22 +92,30 @@ export function CandidateDrawer({ candidate, job, onClose, onStageChange, onDele
         )}
 
         <div className="mb-6">
-          <div className="text-xs font-semibold mb-2 text-muted">MOVE TO STAGE</div>
+          <div className="text-xs font-semibold mb-2 text-muted">
+            {isHost ? "MOVE TO STAGE" : "PIPELINE STAGE"}
+          </div>
           <div className="flex flex-wrap gap-2">
             {STAGES.map((s) => (
               <button
                 key={s}
-                onClick={() => onStageChange(candidate.id, s)}
+                onClick={() => isHost && onStageChange(candidate.id, s)}
+                disabled={!isHost}
                 className="px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{
                   background: candidate.stage === s ? STAGE_COLOR[s] : "#F1EDE3",
                   color: candidate.stage === s ? "#fff" : "#3A3F49",
+                  cursor: isHost ? "pointer" : "default",
+                  opacity: isHost || candidate.stage === s ? 1 : 0.5,
                 }}
               >
                 {s}
               </button>
             ))}
           </div>
+          {!isHost && (
+            <p className="text-[11px] mt-2 text-muted">Only host accounts can change pipeline stage.</p>
+          )}
         </div>
 
         <details className="mb-6 rounded-xl p-3 bg-white border border-border">

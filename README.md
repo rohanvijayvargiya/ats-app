@@ -12,9 +12,11 @@ ats-fullstack/
 
 ## Features
 
-- **Accounts & roles** — sign up as a **host** (can post/edit/delete jobs)
-  or a **team member** (can view jobs and manage the pipeline, but can't
-  post jobs). Passwords are hashed; sessions use signed tokens (JWT).
+- **Accounts & roles** — sign up as a **host** (can post/edit/delete jobs,
+  and move candidates between pipeline stages) or a **team member** (can
+  view jobs, add candidates via resume intake, and view the pipeline, but
+  can't post jobs or change a candidate's stage). Passwords are hashed;
+  sessions use signed tokens (JWT).
 - **Real persistence** — data lives in a free hosted Redis database
   (Upstash), not a local file, so jobs, candidates, and accounts survive
   server restarts (important on free hosting tiers like Render, which
@@ -119,7 +121,7 @@ change `VITE_API_URL` in `frontend/.env` if you run the backend elsewhere.
 | DELETE | /api/jobs/:id             | Host only    | Delete a job                             |
 | GET    | /api/candidates           | Any account  | List candidates (`?jobId=&stage=&q=`)    |
 | POST   | /api/candidates           | Any account  | Add a candidate to a pipeline            |
-| PATCH  | /api/candidates/:id        | Any account  | Update a candidate (e.g. move stage)     |
+| PATCH  | /api/candidates/:id        | Host only    | Update a candidate (e.g. move stage)     |
 | DELETE | /api/candidates/:id        | Any account  | Remove a candidate                       |
 | POST   | /api/resume/parse          | Any account  | Extract fields from a resume file/text   |
 | POST   | /api/resume/score          | Any account  | AI (or heuristic) score vs. a job        |

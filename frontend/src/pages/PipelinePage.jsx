@@ -4,7 +4,7 @@ import { CandidateDrawer } from "../components/CandidateDrawer";
 import { STAGES, STAGE_COLOR, scoreColor } from "../lib/constants";
 import { api } from "../lib/api";
 
-export function PipelinePage({ jobs, candidates, setCandidates, notify }) {
+export function PipelinePage({ jobs, candidates, setCandidates, notify, isHost }) {
   const [jobFilter, setJobFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
@@ -22,6 +22,10 @@ export function PipelinePage({ jobs, candidates, setCandidates, notify }) {
   }
 
   async function moveToStage(id, stage) {
+    if (!isHost) {
+      notify("Only host accounts can change a candidate's pipeline stage.", "error");
+      return;
+    }
     // Optimistic update so the board feels instant, then persist.
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, stage } : c)));
     setSelected((s) => (s && s.id === id ? { ...s, stage } : s));
@@ -34,6 +38,7 @@ export function PipelinePage({ jobs, candidates, setCandidates, notify }) {
 
   function handleDrop(stage) {
     setDragOverStage(null);
+    if (!isHost) return;
     const id = dragIdRef.current;
     if (!id) return;
     moveToStage(id, stage);
@@ -54,7 +59,11 @@ export function PipelinePage({ jobs, candidates, setCandidates, notify }) {
       <header className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold font-serif">Candidate pipeline</h1>
-          <p className="mt-1 text-muted">Drag cards across stages as candidates progress.</p>
+          <p className="mt-1 text-muted">
+            {isHost
+              ? "Drag cards across stages as candidates progress."
+              : "Click a candidate to view details. Only host accounts can move candidates between stages."}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <div className="relative">
@@ -88,6 +97,7 @@ export function PipelinePage({ jobs, candidates, setCandidates, notify }) {
             <div
               key={stage}
               onDragOver={(e) => {
+                if (!isHost) return;
                 e.preventDefault();
                 setDragOverStage(stage);
               }}
@@ -112,16 +122,16 @@ export function PipelinePage({ jobs, candidates, setCandidates, notify }) {
                 {stageCandidates.map((c) => (
                   <div
                     key={c.id}
-                    draggable
+                    draggable={isHost}
                     onDragStart={() => {
                       dragIdRef.current = c.id;
                     }}
                     onClick={() => setSelected(c)}
-                    className="rounded-lg p-3 cursor-grab active:cursor-grabbing bg-white border border-border"
+                    className={`rounded-lg p-3 bg-white border border-border ${isHost ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="font-medium text-sm leading-tight">{c.name}</div>
-                      <GripVertical size={13} color="#C7C1B2" className="shrink-0 mt-0.5" />
+                      {isHost && <GripVertical size={13} color="#C7C1B2" className="shrink-0 mt-0.5" />}
                     </div>
                     <div className="text-[11px] mb-2 text-muted">{jobFor(c.jobId)?.title || "—"}</div>
                     <div className="flex items-center justify-between">
@@ -153,6 +163,7 @@ export function PipelinePage({ jobs, candidates, setCandidates, notify }) {
         onClose={() => setSelected(null)}
         onStageChange={moveToStage}
         onDelete={removeCandidate}
+        isHost={isHost}
       />
     </div>
   );

@@ -104,7 +104,7 @@ export default function App() {
   if (view === "jobs") {
     page = <JobsPage jobs={jobs} setJobs={setJobs} candidates={candidates} notify={notify} isHost={isHost} />;
   } else if (view === "pipeline") {
-    page = <PipelinePage jobs={jobs} candidates={candidates} setCandidates={setCandidates} notify={notify} />;
+    page = <PipelinePage jobs={jobs} candidates={candidates} setCandidates={setCandidates} notify={notify} isHost={isHost} />;
   } else if (view === "upload") {
     page = <UploadPage jobs={jobs} setCandidates={setCandidates} notify={notify} />;
   } else {

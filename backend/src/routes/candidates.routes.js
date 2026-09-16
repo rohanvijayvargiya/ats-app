@@ -1,5 +1,6 @@
 const express = require("express");
 const { readAll, writeAll } = require("../db");
+const { requireHost } = require("../middleware/auth");
 const { asyncHandler } = require("../utils/asyncHandler");
 
 const router = express.Router();
@@ -53,9 +54,10 @@ router.post(
   })
 );
 
-// PATCH /api/candidates/:id  (partial update — used for stage moves on the Kanban board)
+// PATCH /api/candidates/:id — HOST ONLY (moving a candidate between pipeline stages)
 router.patch(
   "/:id",
+  requireHost,
   asyncHandler(async (req, res) => {
     const db = await readAll();
     const idx = db.candidates.findIndex((c) => c.id === req.params.id);
