@@ -1,4 +1,5 @@
 const { verifyToken } = require("../utils/jwt");
+const { readAll } = require("../db");
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
@@ -17,13 +18,21 @@ function requireAuth(req, res, next) {
 }
 
 // Use AFTER requireAuth on routes only "host" accounts may use (posting or
-// deleting jobs). Regular "member" accounts can view everything but not
-// create/remove job postings.
-function requireHost(req, res, next) {
-  if (req.userRole !== "host") {
-    return res.status(403).json({ error: "Only host accounts can do that." });
+// deleting jobs). Checks the CURRENT role stored in the database, not the
+// role baked into the login token when it was issued — this way, a role
+// change (or a token issued during an earlier version of this app) can
+// never leave someone with stale, incorrect permissions.
+async function requireHost(req, res, next) {
+  try {
+    const { users } = await readAll();
+    const user = users.find((u) => u.id === req.userId);
+    if (!user || user.role !== "host") {
+      return res.status(403).json({ error: "Only host accounts can do that." });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 }
 
 module.exports = { requireAuth, requireHost };
