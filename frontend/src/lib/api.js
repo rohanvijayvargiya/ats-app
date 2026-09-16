@@ -1,10 +1,22 @@
+import { getToken, setToken, clearToken } from "./auth";
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
 async function request(path, options = {}) {
+  const token = getToken();
+  const isForm = options.body instanceof FormData;
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: options.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
+    headers: {
+      ...(isForm ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...options,
   });
+
+  if (res.status === 401) {
+    clearToken();
+  }
+
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {
@@ -13,7 +25,9 @@ async function request(path, options = {}) {
     } catch (_) {
       /* ignore parse errors */
     }
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -21,6 +35,26 @@ async function request(path, options = {}) {
 
 export const api = {
   health: () => request("/health"),
+
+  // Auth
+  async signup(email, password, name, role) {
+    const data = await request("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password, name, role }),
+    });
+    setToken(data.token);
+    return data.user;
+  },
+  async login(email, password) {
+    const data = await request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    setToken(data.token);
+    return data.user;
+  },
+  me: () => request("/auth/me"),
+  logout: () => clearToken(),
 
   // Jobs
   getJobs: () => request("/jobs"),

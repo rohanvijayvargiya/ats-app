@@ -5,7 +5,7 @@ import { api } from "../lib/api";
 
 const EMPTY_FORM = { title: "", department: "", location: "", type: "Full-time", description: "" };
 
-export function JobsPage({ jobs, setJobs, candidates, notify }) {
+export function JobsPage({ jobs, setJobs, candidates, notify, isHost }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -45,17 +45,23 @@ export function JobsPage({ jobs, setJobs, candidates, notify }) {
       <header className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold font-serif">Job openings</h1>
-          <p className="mt-1 text-muted">Create and manage the roles you're hiring for.</p>
+          <p className="mt-1 text-muted">
+            {isHost
+              ? "Create and manage the roles you're hiring for."
+              : "Browse open roles. Only host accounts can post or remove jobs."}
+          </p>
         </div>
-        <button
-          onClick={() => setShowForm((s) => !s)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-tealdeep"
-        >
-          <Plus size={16} /> New job
-        </button>
+        {isHost && (
+          <button
+            onClick={() => setShowForm((s) => !s)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-tealdeep"
+          >
+            <Plus size={16} /> New job
+          </button>
+        )}
       </header>
 
-      {showForm && (
+      {isHost && showForm && (
         <form onSubmit={submit} className="rounded-xl p-5 mb-8 bg-white border border-border">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -136,9 +142,11 @@ export function JobsPage({ jobs, setJobs, candidates, notify }) {
                     </span>
                   </div>
                 </div>
-                <button onClick={() => remove(j.id)} className="p-1.5 rounded-md hover:bg-red-50">
-                  <Trash2 size={15} color="#C23A4D" />
-                </button>
+                {isHost && (
+                  <button onClick={() => remove(j.id)} className="p-1.5 rounded-md hover:bg-red-50">
+                    <Trash2 size={15} color="#C23A4D" />
+                  </button>
+                )}
               </div>
               <p className="text-sm leading-relaxed text-[#3A3F49]">
                 {j.description.length > 180 ? j.description.slice(0, 180) + "…" : j.description}
@@ -154,7 +162,9 @@ export function JobsPage({ jobs, setJobs, candidates, notify }) {
         })}
         {jobs.length === 0 && (
           <div className="col-span-2 text-center py-16 rounded-xl border border-dashed border-border text-muted">
-            No open roles yet. Post your first job to start receiving candidates.
+            {isHost
+              ? "No open roles yet. Post your first job to start receiving candidates."
+              : "No open roles yet. Check back once a host posts one."}
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@ const upload = require("../middleware/upload");
 const { readAll } = require("../db");
 const { extractTextFromFile, parseResumeText } = require("../utils/parseResume");
 const { scoreResume } = require("../utils/aiScore");
+const { asyncHandler } = require("../utils/asyncHandler");
 
 const router = express.Router();
 
@@ -30,17 +31,20 @@ router.post("/parse", upload.single("resume"), async (req, res) => {
 });
 
 // POST /api/resume/score  { resumeText, jobId }
-router.post("/score", async (req, res) => {
-  const { resumeText, jobId } = req.body || {};
-  if (!resumeText || !jobId) {
-    return res.status(400).json({ error: "resumeText and jobId are required" });
-  }
-  const { jobs } = readAll();
-  const job = jobs.find((j) => j.id === jobId);
-  if (!job) return res.status(404).json({ error: "Job not found" });
+router.post(
+  "/score",
+  asyncHandler(async (req, res) => {
+    const { resumeText, jobId } = req.body || {};
+    if (!resumeText || !jobId) {
+      return res.status(400).json({ error: "resumeText and jobId are required" });
+    }
+    const { jobs } = await readAll();
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return res.status(404).json({ error: "Job not found" });
 
-  const result = await scoreResume(resumeText, job);
-  res.json(result);
-});
+    const result = await scoreResume(resumeText, job);
+    res.json(result);
+  })
+);
 
 module.exports = router;

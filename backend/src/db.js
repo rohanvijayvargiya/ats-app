@@ -1,18 +1,34 @@
 /**
- * Lightweight JSON-file data store.
+ * Persistent data store.
  *
- * This keeps the project dependency-free for persistence (no native
- * bindings to compile, nothing extra to install) while still giving you
- * a real server-side source of truth that survives restarts.
+ * If UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are set, everything
+ * is stored in a free Upstash Redis database (one JSON blob under the key
+ * "ats-db") — this survives server restarts, which matters because
+ * Render's free tier wipes its local disk every time the service spins
+ * down from inactivity and back up. Without this, seed data and any
+ * deletions you make keep reverting every time the server restarts.
  *
- * Swapping this for Postgres/MySQL/MongoDB later only means rewriting the
- * functions below (readAll/writeAll) — every route calls through this
- * module, never the file system directly.
+ * If those env vars aren't set, we fall back to a local JSON file so the
+ * app still runs for local development without extra signup — but this
+ * fallback does NOT persist reliably once deployed to Render's free tier.
  */
 const fs = require("fs");
 const path = require("path");
 
 const DB_PATH = path.join(__dirname, "..", "data", "db.json");
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const useUpstash = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
+
+if (!useUpstash) {
+  console.warn(
+    "WARNING: UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not set. " +
+      "Falling back to a local JSON file, which does NOT persist on Render's " +
+      "free tier across restarts — jobs, candidates, and accounts will " +
+      "periodically reset to the seed data. Set up a free Upstash Redis " +
+      "database (see README) to fix this permanently."
+  );
+}
 
 const seedJobs = [
   {
@@ -89,23 +105,53 @@ const seedCandidates = [
   },
 ];
 
-function ensureDB() {
+function normalize(data) {
+  if (!data || typeof data !== "object") data = {};
+  if (!Array.isArray(data.jobs)) data.jobs = seedJobs;
+  if (!Array.isArray(data.candidates)) data.candidates = seedCandidates;
+  if (!Array.isArray(data.users)) data.users = [];
+  return data;
+}
+
+function ensureLocalDB() {
   if (!fs.existsSync(DB_PATH)) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     fs.writeFileSync(
       DB_PATH,
-      JSON.stringify({ jobs: seedJobs, candidates: seedCandidates }, null, 2)
+      JSON.stringify({ jobs: seedJobs, candidates: seedCandidates, users: [] }, null, 2)
     );
   }
 }
 
-function readAll() {
-  ensureDB();
-  const raw = fs.readFileSync(DB_PATH, "utf-8");
-  return JSON.parse(raw);
+async function readAll() {
+  if (useUpstash) {
+    const res = await fetch(`${UPSTASH_URL}/get/ats-db`, {
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+    });
+    if (!res.ok) throw new Error(`Upstash read failed (${res.status})`);
+    const json = await res.json();
+    if (!json.result) return { jobs: seedJobs, candidates: seedCandidates, users: [] };
+    try {
+      return normalize(JSON.parse(json.result));
+    } catch {
+      return { jobs: seedJobs, candidates: seedCandidates, users: [] };
+    }
+  }
+  ensureLocalDB();
+  return normalize(JSON.parse(fs.readFileSync(DB_PATH, "utf-8")));
 }
 
-function writeAll(data) {
+async function writeAll(data) {
+  if (useUpstash) {
+    const res = await fetch(`${UPSTASH_URL}/set/ats-db`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`Upstash write failed (${res.status})`);
+    return;
+  }
+  ensureLocalDB();
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 

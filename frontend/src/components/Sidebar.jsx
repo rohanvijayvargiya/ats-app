@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, Briefcase, LayoutGrid, UploadCloud } from "lucide-react";
+import { LayoutDashboard, Briefcase, LayoutGrid, UploadCloud, LogOut } from "lucide-react";
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { key: "upload", label: "Resume Intake", icon: UploadCloud },
 ];
 
-export function Sidebar({ view, setView, jobCount, candidateCount }) {
+export function Sidebar({ view, setView, jobCount, candidateCount, user, onLogout }) {
   const badges = { jobs: jobCount, candidates: candidateCount };
   return (
     <div className="hidden md:flex flex-col shrink-0 w-64 h-screen sticky top-0 py-6 px-4 bg-ink text-white">
@@ -52,22 +52,25 @@ export function Sidebar({ view, setView, jobCount, candidateCount }) {
         })}
       </nav>
 
-      <div className="mt-auto pt-6 border-t border-[#262E4C]">
-        <div className="flex items-center gap-2 px-2">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold bg-[#2A3253] text-white">
-            RD
+      {user && (
+        <div className="mt-auto pt-6 border-t border-[#262E4C] flex items-center gap-2 px-2">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold bg-[#2A3253] text-white shrink-0">
+            {(user.name || user.email || "?").slice(0, 1).toUpperCase()}
           </div>
-          <div className="text-xs">
-            <div className="text-white font-medium">Recruiting Desk</div>
-            <div className="text-[#8890A8]">Talent Acquisition</div>
+          <div className="text-xs flex-1 min-w-0">
+            <div className="text-white font-medium truncate">{user.name || user.email}</div>
+            <div className="text-[#8890A8] capitalize">{user.role}</div>
           </div>
+          <button onClick={onLogout} title="Log out" className="p-1.5 rounded-md hover:bg-black/20 shrink-0">
+            <LogOut size={15} color="#8A8F9C" />
+          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-export function MobileNav({ view, setView }) {
+export function MobileNav({ view, setView, onLogout }) {
   const items = [
     { key: "dashboard", label: "Home", icon: LayoutDashboard },
     { key: "jobs", label: "Jobs", icon: Briefcase },
@@ -87,6 +90,14 @@ export function MobileNav({ view, setView }) {
           </button>
         );
       })}
+      {onLogout && (
+        <button onClick={onLogout} className="flex flex-col items-center gap-0.5 px-3 py-1">
+          <LogOut size={18} color="#8890A8" />
+          <span className="text-[10px]" style={{ color: "#8890A8" }}>
+            Logout
+          </span>
+        </button>
+      )}
     </div>
   );
 }

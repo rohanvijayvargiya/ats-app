@@ -12,8 +12,16 @@ ats-fullstack/
 
 ## Features
 
-- **Job Management** — create, list, and delete open roles (title, department,
-  location, type, description), stored server-side.
+- **Accounts & roles** — sign up as a **host** (can post/edit/delete jobs)
+  or a **team member** (can view jobs and manage the pipeline, but can't
+  post jobs). Passwords are hashed; sessions use signed tokens (JWT).
+- **Real persistence** — data lives in a free hosted Redis database
+  (Upstash), not a local file, so jobs, candidates, and accounts survive
+  server restarts (important on free hosting tiers like Render, which
+  restart the container — and would otherwise wipe a local file, resetting
+  everything back to the seed data — after periods of inactivity).
+- **Job Management** — hosts create, list, and delete open roles (title,
+  department, location, type, description), stored server-side.
 - **Candidate Pipeline** — a Kanban board (Applied → Screening → Interview →
   Offered → Rejected) with drag-and-drop; stage changes are saved via the API.
 - **Resume Parser** — drag-and-drop upload of `.pdf`, `.docx`, or `.txt`
@@ -47,6 +55,27 @@ ANTHROPIC_API_KEY=sk-ant-...
 Get a key at https://console.anthropic.com/settings/keys. Leaving it blank is
 fine — AI scoring just uses the heuristic fallback instead.
 
+Set a real `JWT_SECRET` (required for accounts to work properly):
+```
+JWT_SECRET=some-long-random-string
+```
+Generate one with:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Set up free persistent storage (important once deployed):**
+
+1. Go to https://console.upstash.com and sign up (free, no card).
+2. Click **"Create Database"**, give it any name, pick a region, click Create.
+3. On the database's page, find the **"REST API"** section — copy the
+   `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` values into `.env`.
+
+Without this, the app runs fine locally with a local file — but once
+deployed to Render's free tier, that file gets wiped every time the server
+restarts, resetting jobs/candidates back to the seed data and breaking
+everyone's accounts. Upstash fixes that permanently, for free.
+
 Start the API:
 
 ```bash
@@ -79,17 +108,25 @@ change `VITE_API_URL` in `frontend/.env` if you run the backend elsewhere.
 
 ## API reference
 
-| Method | Path                    | Description                              |
-|--------|-------------------------|-------------------------------------------|
-| GET    | /api/jobs                | List all jobs                            |
-| POST   | /api/jobs                | Create a job                             |
-| DELETE | /api/jobs/:id             | Delete a job                             |
-| GET    | /api/candidates           | List candidates (`?jobId=&stage=&q=`)    |
-| POST   | /api/candidates           | Add a candidate to a pipeline            |
-| PATCH  | /api/candidates/:id        | Update a candidate (e.g. move stage)     |
-| DELETE | /api/candidates/:id        | Remove a candidate                       |
-| POST   | /api/resume/parse          | Extract fields from a resume file/text   |
-| POST   | /api/resume/score          | AI (or heuristic) score vs. a job        |
+| Method | Path                    | Access       | Description                              |
+|--------|-------------------------|--------------|--------------------------------------------|
+| POST   | /api/auth/signup          | Public       | Create an account (choose host or member)  |
+| POST   | /api/auth/login           | Public       | Log in, get a session token                |
+| GET    | /api/auth/me              | Any account  | Get the current logged-in user             |
+| GET    | /api/jobs                | Any account  | List all jobs                            |
+| POST   | /api/jobs                | Host only    | Create a job                             |
+| PUT    | /api/jobs/:id             | Host only    | Edit a job                                |
+| DELETE | /api/jobs/:id             | Host only    | Delete a job                             |
+| GET    | /api/candidates           | Any account  | List candidates (`?jobId=&stage=&q=`)    |
+| POST   | /api/candidates           | Any account  | Add a candidate to a pipeline            |
+| PATCH  | /api/candidates/:id        | Any account  | Update a candidate (e.g. move stage)     |
+| DELETE | /api/candidates/:id        | Any account  | Remove a candidate                       |
+| POST   | /api/resume/parse          | Any account  | Extract fields from a resume file/text   |
+| POST   | /api/resume/score          | Any account  | AI (or heuristic) score vs. a job        |
+
+"Any account" routes require an `Authorization: Bearer <token>` header —
+the frontend handles this automatically once you're logged in. "Host only"
+routes additionally check the role stored in your session token.
 
 ## Notes on going to production
 
